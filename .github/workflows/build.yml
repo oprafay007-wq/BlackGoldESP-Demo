@@ -13,35 +13,31 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Extract project
-        run: unzip -o BlackGold_ESP_AndroidStudio_Project.zip -d project
+        run: |
+          mkdir project
+          unzip -o BlackGold_ESP_AndroidStudio_Project.zip -d project
+          find project -name settings.gradle -print
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Locate Android SDK
-        run: |
-          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager not found"
-            exit 1
-          fi
-          echo "SDKMANAGER=$SDKMANAGER" >> $GITHUB_ENV
-          yes | "$SDKMANAGER" --licenses || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
 
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
       - name: Build APK
-        working-directory: project
-        run: gradle assembleDebug
+        run: |
+          ROOT=$(dirname "$(find project -name settings.gradle -print -quit)")
+          echo "Gradle project: $ROOT"
+          cd "$ROOT"
+          gradle assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:
           name: BlackGold-Demo-APK
-          path: project/app/build/outputs/apk/debug/app-debug.apk
+          path: project/**/app/build/outputs/apk/debug/app-debug.apk
